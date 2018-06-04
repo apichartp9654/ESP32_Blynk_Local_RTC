@@ -480,8 +480,10 @@ void setup()
 {
   // Debug console
   Serial.begin(115200);
+  
+  //Blynk.begin(auth, ssid, pass); // Blynk Server
 
-  Blynk.begin(auth, ssid, pass,IPAddress(192,168,1,41), 8080);
+  Blynk.begin(auth, ssid, pass,IPAddress(XX,XX,XX,XX), 8080); // Local Server
 
   setSyncInterval(10 * 60); // Sync interval in seconds (10 minutes)
 
