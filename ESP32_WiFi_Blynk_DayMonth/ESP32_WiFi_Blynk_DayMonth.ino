@@ -44,7 +44,7 @@
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon). 
-char auth[] = "yourToken"; // pi2 local
+char auth[] = "token"; // pi2 local
 
 //********************* blobal variable ************************
 // Your WiFi credentials.
@@ -71,6 +71,7 @@ class TimeInterval{
      int sMonth = 1; // start month element for chek time interval( 1 - 12)
      int eDay = 1; // end day element for chek time interval( 1 - 31)
      int eMonth = 1; // end month element for chek time interval( 1 - 12)
+     bool daysOfWeek[7] = {true,true,true,true,true,true,true};
 };
 
 TimeInterval t1;
@@ -92,15 +93,20 @@ bool curState2 = false;
 int selectedMode = 1; // manual
 bool after1stCycle = false;
 
+bool IsMatchDaysOffWeek(bool days[], int cdayw)
+{
+  return days[cdayw - 1];  
+}
 
-bool IsONTIME(int id, int cTime, int cday, int cmonth)
+bool IsONTIME(int id, int cTime, int cday)
 {
    TimeInterval t = checkTimes[id];
 
-   bool checkMonth = (t.sMonth <= cmonth)&&(cmonth <= t.eMonth) ;
-   bool checkDay = (t.sDay <= cday)&&(cday <= t.eDay) ;
+   //bool checkMonth = (t.sMonth <= cmonth)&&(cmonth <= t.eMonth) ;
+   //bool checkDay = (t.sDay <= cday)&&(cday <= t.eDay) ;
+   bool checkDaysOfWeek = IsMatchDaysOffWeek(t.daysOfWeek, cday);
    bool ret = (t.Start <= cTime)&&(cTime <= t.End) ;
-   return ret && checkMonth && checkDay;
+   return ret && checkDaysOfWeek;
 }
 
 void ShowTimeFromRTC()
@@ -130,7 +136,7 @@ void validateTimer()
    for (int i = 0;  i < 4; i++)
    {
      
-     if(IsONTIME(i, hnow,cDay, cMonth ))
+     if(IsONTIME(i, hnow,cDay ))
      {
       // present time is inside checkTimes[i] interval
         nState = true;
@@ -315,6 +321,7 @@ void SetTimeIntervals()
   checkTimes[1].eDay = 30;
   checkTimes[1].eMonth = 1;
   
+  
   checkTimes[2].Start = 13 *60;
   checkTimes[2].End = 16 * 60;
   checkTimes[2].RelayID = 2;
@@ -355,7 +362,7 @@ int tempStartDay = 1;
 int tempEndDay = 1;
 int tempStartMonth = 1;
 int tempEndMonth = 1;
-
+bool tempDayOfWeek[] = {true,true,true,true,true,true,true};
 // You can send commands from Terminal to your hardware. Just use
 // the same Virtual Pin as your Terminal Widget
 BLYNK_WRITE(V0)
@@ -456,6 +463,12 @@ BLYNK_WRITE(V10)
   tStart = (t.getStartHour() * 60) + t.getStartMinute();
   tEnd = (t.getStopHour() * 60) + t.getStopMinute();
 
+  // Process weekdays (1. Mon, 2. Tue, 3. Wed, ...)
+  for (int i = 0; i < 7; i++) 
+  {
+   tempDayOfWeek[i] = t.isWeekdaySelected(i + 1);
+  }
+
   tz = t.getTZ();
   Serial.println(tz);
   Serial.println(tStart);
@@ -550,8 +563,20 @@ BLYNK_WRITE(V13)
      checkTimes[timerID].sMonth = tempStartMonth;
      checkTimes[timerID].eMonth = tempEndMonth;
      String s = "Timer " + String(timerID) + ".Start = " + String(checkTimes[timerID].Start) + " .End = " + String(checkTimes[timerID].End) + " .Relay = " + String(checkTimes[timerID].RelayID);
-     s = s + " Start M:D " + String(tempStartMonth) + " : " + String(tempStartDay);
-     s = s + " End M:D " + String(tempEndMonth) + " : " + String(tempEndDay);
+     s = s + " DaysOfWeek [" ;
+     for(int j = 0 ; j< 7 ; j++)
+     {
+      if (j < 6)
+      {
+       s = s + String(checkTimes[timerID].daysOfWeek[j]) + ",";
+      }
+      else
+      {
+        s = s + String(checkTimes[timerID].daysOfWeek[j]) + "]";
+      }
+     }
+     
+     //s = s + " End M:D " + String(tempEndMonth) + " : " + String(tempEndDay);
      Serial.println(s); 
   }
 }
