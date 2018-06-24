@@ -44,7 +44,7 @@
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon). 
-char auth[] = "token"; // pi2 local
+char auth[] = "Token"; // pi2 local
 
 //********************* blobal variable ************************
 // Your WiFi credentials.
@@ -71,7 +71,7 @@ class TimeInterval{
      int sMonth = 1; // start month element for chek time interval( 1 - 12)
      int eDay = 1; // end day element for chek time interval( 1 - 31)
      int eMonth = 1; // end month element for chek time interval( 1 - 12)
-     bool daysOfWeek[7] = {true,true,true,true,true,true,true};
+     bool daysOfWeek[7] = {false,false,false,false,false,false,false};
 };
 
 TimeInterval t1;
@@ -92,9 +92,14 @@ bool curState2 = false;
 
 int selectedMode = 1; // manual
 bool after1stCycle = false;
-
+bool startReady = false;
+int weekDays[7] = {7,1,2,3,4,5,6}; //Array of Blynk week day (Monday = 1 , Sunday = 7 ) in TimeLib (Sunday = 1 Monday = 2) order
 bool IsMatchDaysOffWeek(bool days[], int cdayw)
 {
+  
+     Serial.println("C day = " + String(cdayw));
+     
+     Serial.println("result = " + String(days[cdayw - 1]));
   return days[cdayw - 1];  
 }
 
@@ -114,6 +119,8 @@ void ShowTimeFromRTC()
   String currentTime = String(hour()) + ":" + minute() + ":" + second();
   String currentDate = String(day()) + "/" + month() + "/" + year();
   String v = currentDate + " " + currentTime;
+   Serial.print("Current Time =: ");
+   Serial.println(v);
   Blynk.virtualWrite(V3, v);
 }
 
@@ -127,8 +134,10 @@ void validateTimer()
    int hnow = (hour() * 60) + minute();
    int cMonth = month();
    int cDay = day();
+   int wDay = weekDays[weekday() - 1]; // convert to blynk start on monday
    bool nState = false;
-   
+   //Serial.println("weekday " + String(weekday()));
+   //Serial.println("blynkDay " + String(wDay));
    Serial.print("Time =: ");
    Serial.print(hnow);
 
@@ -136,7 +145,7 @@ void validateTimer()
    for (int i = 0;  i < 4; i++)
    {
      
-     if(IsONTIME(i, hnow,cDay ))
+     if(IsONTIME(i, hnow, wDay ))
      {
       // present time is inside checkTimes[i] interval
         nState = true;
@@ -157,10 +166,10 @@ void validateTimer()
       Serial.print(" not Valid to any timer ");
       Serial.println(" ->OFF time");
       digitalWrite(RELAY_PIN, LOW);   //send active low to OFF relay
-      //Blynk.virtualWrite(V8, 0);
+      Blynk.virtualWrite(V8, 0);
       led1.off();
       digitalWrite(RELAY_PIN2, LOW);   //send active low to OFF relay
-      //Blynk.virtualWrite(V7, 0);
+      Blynk.virtualWrite(V7, 0);
       led2.off();
    }
    else
@@ -173,70 +182,7 @@ void validateTimer()
    }
 
     setRelayState(relay, (relay == 1)? RELAY_PIN  : RELAY_PIN2, nState);
-/*
-    if(relay == 1)
-    {
-       Serial.print(" -> current state [");
-       Serial.print(curState);
-       Serial.print("] ");
-       if(nState != curState)
-       {
-         Serial.println(" state Changed.");
-         curState = nState;
-    
-         if(nState)
-         {
-          digitalWrite(RELAY_PIN, HIGH);  //send active high to ON relay
-          //Blynk.virtualWrite(V1, 1);
-          Blynk.virtualWrite(V8, 1);
-          led1.on();
-         }
-         else
-         {
-          digitalWrite(RELAY_PIN, LOW);   //send active low to OFF relay
-          //Blynk.virtualWrite(V1, 0);
-          Blynk.virtualWrite(V8, 0);
-          led1.off();
-         }
-       }
-       else
-       {
-          Serial.println(" state not Change.");
-       }
-    }
-    else if(relay == 2)
-    {
-       Serial.print(" -> current state [");
-       Serial.print(curState2);
-       Serial.print("] ");
-       if(nState != curState2)
-       {
-         Serial.println(" state Changed.");
-         curState2 = nState;
-    
-         if(nState)
-         {
-          digitalWrite(RELAY_PIN2, HIGH);  //send active high to ON relay
-          //Blynk.virtualWrite(V2, 1);
-          Blynk.virtualWrite(V7, 1);
-          led2.on();
-         }
-         else
-         {
-          digitalWrite(RELAY_PIN2, LOW);   //send active low to OFF relay
-          //Blynk.virtualWrite(V2, 0);
-          Blynk.virtualWrite(V7, 0);
-          led2.off();
-         }
-       }
-       else
-       {
-          Serial.println(" state not Change.");
-       }
-    }
-    */
 
-   
 }
 
 void setRelayState(int relayNo, int Pin, bool state)
@@ -263,12 +209,14 @@ void setRelayState(int relayNo, int Pin, bool state)
     
          if(state)
          {
+          Serial.println("Relay " + String(relayNo) + "set to HIGH state");
           digitalWrite(Pin, HIGH);  //send active high to ON relay
           Blynk.virtualWrite(vPin, 1);
           led.on();
          }
          else
          {
+          Serial.println("Relay " + String(relayNo) + "set to LOW state");
           digitalWrite(Pin, LOW);   //send active low to OFF relay
           Blynk.virtualWrite(vPin, 0);
           led.off();
@@ -325,7 +273,7 @@ void SetTimeIntervals()
   checkTimes[2].Start = 13 *60;
   checkTimes[2].End = 16 * 60;
   checkTimes[2].RelayID = 2;
-  checkTimes[20].sDay = 1;
+  checkTimes[2].sDay = 1;
   checkTimes[2].sMonth = 6;
   checkTimes[2].eDay = 30;
   checkTimes[2].eMonth = 1;
@@ -350,6 +298,16 @@ BLYNK_CONNECTED() {
   Blynk.syncAll();
   // Synchronize time on connection
   rtc.begin();
+
+  if(!startReady)
+  {
+    startReady = true;
+  }
+  else
+  {
+    // Blynk down and just come back from hell
+    Serial.println("Blynk server down and just come back from hell");
+  }
 }
 
 
@@ -389,7 +347,11 @@ BLYNK_WRITE(V0)
 // Handle Button state change from blynk
 BLYNK_WRITE(V1) 
 {
-  if(selectedMode == 1){return;} // not allow to change state in auto mode
+  if(selectedMode == 1)
+  {
+    Blynk.virtualWrite(V1, 0);
+    return;
+   } // not allow to change state in auto mode
   int s = param.asInt();
 
   curState = s > 0;
@@ -411,7 +373,11 @@ BLYNK_WRITE(V1)
 // Handle Button state change from blynk
 BLYNK_WRITE(V2) 
 {
-  if(selectedMode == 1){return;} // not allow to change state in auto mode
+  if(selectedMode == 1)
+  {
+    Blynk.virtualWrite(V2, 0);
+    return;
+   } // not allow to change state in auto mode
   int s = param.asInt();
 
   curState2 = s > 0;
@@ -464,15 +430,21 @@ BLYNK_WRITE(V10)
   tEnd = (t.getStopHour() * 60) + t.getStopMinute();
 
   // Process weekdays (1. Mon, 2. Tue, 3. Wed, ...)
+  String s = "";
   for (int i = 0; i < 7; i++) 
   {
    tempDayOfWeek[i] = t.isWeekdaySelected(i + 1);
+   s = s + String(tempDayOfWeek[i]) + ",";
   }
+
+ 
+  
 
   tz = t.getTZ();
   Serial.println(tz);
   Serial.println(tStart);
   Serial.println(tEnd);
+  Serial.println(s);
 }
 
 // Update Relay No from blynk
@@ -566,6 +538,7 @@ BLYNK_WRITE(V13)
      s = s + " DaysOfWeek [" ;
      for(int j = 0 ; j< 7 ; j++)
      {
+      checkTimes[timerID].daysOfWeek[j] = tempDayOfWeek[j];
       if (j < 6)
       {
        s = s + String(checkTimes[timerID].daysOfWeek[j]) + ",";
@@ -642,7 +615,7 @@ void setup()
   SetTimeIntervals();
   
   // check hour segment every 10 seconds
-  timer.setInterval(1000L, validateTimer);
+  timer.setInterval(5000L, validateTimer);
 
   pinMode(RELAY_PIN, OUTPUT); // set pin as output to relay R1
   pinMode(RELAY_PIN2, OUTPUT); // set pin as output to relay R2
@@ -654,6 +627,7 @@ void setup()
     Serial.println(s);
   }
   checkRelayState();
+  startReady = true;
   //ShowTimeFromRTC();
 }
 
