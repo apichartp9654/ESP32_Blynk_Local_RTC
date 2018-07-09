@@ -126,9 +126,16 @@ void ShowTimeFromRTC()
 
 void validateTimer()
 {
+
+  ShowTimeFromRTC();
+  if(selectedMode == 2)
+  {
+    // if selectedMode == 2 (Manual mode) not change state from timer
+    return;
+  }
   checkRelayState();
   after1stCycle = true;
-  ShowTimeFromRTC();
+  
   if(selectedMode == 2){return;} // not allow to change state in manual mode
    
    int hnow = (hour() * 60) + minute();
